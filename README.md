@@ -16,3 +16,9 @@ React · TypeScript · FastAPI · Claude API · SQLite · GitHub Actions CI
 3. Start backend: `cd backend && python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt && uvicorn main:app --reload --port 8000`
 4. Start frontend: `cd frontend && npm install && npm run dev`
 5. Open http://localhost:5173
+
+## Running with Docker
+
+docker build -t freightiq-backend ./backend
+
+docker run --env-file backend/.env -p 8000:8000 freightiq-backend
