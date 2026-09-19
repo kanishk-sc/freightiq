@@ -5,14 +5,11 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Start test dependencies
         run: docker compose up -d postgres redis minio --wait
       - name: Build backend test image
@@ -32,13 +29,13 @@ jobs:
         run: docker compose --profile test down
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
