@@ -1,5 +1,3 @@
-from dotenv import load_dotenv
-load_dotenv()
 import json
 import os
 import re
@@ -8,6 +6,9 @@ from typing import Any
 
 import anthropic
 import pdfplumber
+from dotenv import load_dotenv
+
+load_dotenv()
 
 EXTRACTION_SYSTEM_PROMPT = (
     "You are a freight invoice parser. Extract the following fields as JSON: "
