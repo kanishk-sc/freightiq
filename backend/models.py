@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from decimal import Decimal
 
@@ -38,6 +39,9 @@ class Invoice(TimestampMixin, Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int | None] = mapped_column(
+        ForeignKey("documents.id"), unique=True
+    )
     carrier_name: Mapped[str | None] = mapped_column(String(255))
     invoice_number: Mapped[str | None] = mapped_column(String(128), index=True)
     invoice_date: Mapped[str | None] = mapped_column(String(32))
@@ -57,6 +61,43 @@ class Invoice(TimestampMixin, Base):
     audit_flags: Mapped[list["AuditFlag"]] = relationship(
         back_populates="invoice", cascade="all, delete-orphan"
     )
+
+
+class Document(TimestampMixin, Base):
+    __tablename__ = "documents"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    object_key: Mapped[str] = mapped_column(String(1024), unique=True, nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+
+
+class ProcessingJob(TimestampMixin, Base):
+    __tablename__ = "processing_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued', 'processing', 'completed', 'failed')",
+            name="ck_processing_jobs_status",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    idempotency_key: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False
+    )
+    document_id: Mapped[int] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(16), default="queued", nullable=False)
+    attempt_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    invoice_id: Mapped[int | None] = mapped_column(
+        ForeignKey("invoices.id", ondelete="SET NULL"), unique=True
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class LineItem(Base):

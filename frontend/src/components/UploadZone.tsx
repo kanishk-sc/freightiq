@@ -64,8 +64,10 @@ export default function UploadZone({ onUpload, loading, error }: UploadZoneProps
         {loading ? (
           <div className="flex flex-col items-center gap-4">
             <div className="h-12 w-12 animate-spin rounded-full border-4 border-freight-100 border-t-freight-600" />
-            <p className="font-medium text-slate-700">Extracting invoice data…</p>
-            <p className="text-sm text-slate-500">Parsing PDF and running AI extraction</p>
+            <p className="font-medium text-slate-700">Processing invoice…</p>
+            <p className="text-sm text-slate-500">
+              Stored safely; waiting for the background worker
+            </p>
           </div>
         ) : (
           <>

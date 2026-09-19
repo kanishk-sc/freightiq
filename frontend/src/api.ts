@@ -13,6 +13,7 @@ export interface AuditFlag {
   field: string;
   severity: "warning" | "error";
   description: string;
+  source: "deterministic" | "model";
 }
 
 export interface FlagCounts {
@@ -50,10 +51,15 @@ export interface InvoiceSummary {
   flag_counts: FlagCounts;
 }
 
-export interface AuditResponse {
-  invoice_id: number;
-  audit_flags: AuditFlag[];
-  flag_counts: FlagCounts;
+export interface ProcessingJob {
+  job_id: string;
+  status: "queued" | "processing" | "completed" | "failed";
+  invoice_id: number | null;
+  attempt_count: number;
+  error_code: string | null;
+  created_at: string;
+  updated_at: string;
+  replayed: boolean;
 }
 
 export interface DashboardStats {
@@ -89,21 +95,20 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function uploadInvoice(file: File): Promise<Invoice> {
+export async function uploadInvoice(file: File): Promise<ProcessingJob> {
   const formData = new FormData();
   formData.append("file", file);
-  const response = await fetch(`${API_BASE}/upload`, {
+  const response = await fetch(`${API_BASE}/invoices`, {
     method: "POST",
+    headers: { "Idempotency-Key": crypto.randomUUID() },
     body: formData,
   });
-  return handleResponse<Invoice>(response);
+  return handleResponse<ProcessingJob>(response);
 }
 
-export async function runAudit(invoiceId: number): Promise<AuditResponse> {
-  const response = await fetch(`${API_BASE}/audit/${invoiceId}`, {
-    method: "POST",
-  });
-  return handleResponse<AuditResponse>(response);
+export async function getJob(jobId: string): Promise<ProcessingJob> {
+  const response = await fetch(`${API_BASE}/jobs/${jobId}`);
+  return handleResponse<ProcessingJob>(response);
 }
 
 export async function listInvoices(): Promise<InvoiceSummary[]> {

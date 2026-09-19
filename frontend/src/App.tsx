@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ApiError,
   getInvoice,
-  runAudit,
+  getJob,
   uploadInvoice,
   type AuditFlag,
   type FlagCounts,
@@ -22,8 +22,6 @@ export default function App() {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [auditLoading, setAuditLoading] = useState(false);
-  const [auditError, setAuditError] = useState<string | null>(null);
   const [auditFlags, setAuditFlags] = useState<AuditFlag[]>([]);
   const [flagCounts, setFlagCounts] = useState<FlagCounts>({
     errors: 0,
@@ -56,7 +54,18 @@ export default function App() {
     setUploadLoading(true);
     setUploadError(null);
     try {
-      const data = await uploadInvoice(file);
+      let job = await uploadInvoice(file);
+      for (let poll = 0; poll < 120 && job.status !== "completed"; poll += 1) {
+        if (job.status === "failed") {
+          throw new ApiError(job.error_code ?? "Invoice processing failed", 422);
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        job = await getJob(job.job_id);
+      }
+      if (job.status !== "completed" || job.invoice_id === null) {
+        throw new ApiError("Processing is taking longer than expected", 504);
+      }
+      const data = await getInvoice(job.invoice_id);
       setSelectedId(data.id);
       setInvoice(data);
       setAuditFlags(data.audit_flags);
@@ -68,22 +77,6 @@ export default function App() {
       );
     } finally {
       setUploadLoading(false);
-    }
-  };
-
-  const handleAudit = async () => {
-    if (!selectedId) return;
-    setAuditLoading(true);
-    setAuditError(null);
-    try {
-      const result = await runAudit(selectedId);
-      setAuditFlags(result.audit_flags);
-      setFlagCounts(result.flag_counts);
-      await loadInvoice(selectedId);
-    } catch (err) {
-      setAuditError(err instanceof ApiError ? err.message : "Audit failed. Please try again.");
-    } finally {
-      setAuditLoading(false);
     }
   };
 
@@ -175,14 +168,6 @@ export default function App() {
                     : "Invoice Detail"}
                 </h1>
               </div>
-              <button
-                type="button"
-                onClick={() => void handleAudit()}
-                disabled={auditLoading || detailLoading || !selectedId}
-                className="rounded-lg bg-freight-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-freight-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {auditLoading ? "Auditing…" : "Run Audit"}
-              </button>
             </div>
 
             {detailLoading && !invoice ? (
@@ -195,8 +180,6 @@ export default function App() {
                 <AuditPanel
                   flags={auditFlags}
                   flagCounts={flagCounts}
-                  loading={auditLoading}
-                  error={auditError}
                 />
               </>
             ) : (
