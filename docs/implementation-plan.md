@@ -32,7 +32,7 @@ Checkmarks mean the feature has been executed or tested, not merely configured.
 
 ## 5. Operational evidence
 
-- [ ] Add bounded low-cardinality API and worker metrics
+- [x] Add bounded low-cardinality API and durable worker-outcome metrics
 - [x] Run a real local PDF → object → Celery worker failure-path demonstration
 - [ ] Run a successful live extraction with a configured Anthropic API key
 - [ ] Record only observed functional or performance results

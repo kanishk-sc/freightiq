@@ -45,6 +45,18 @@ def upload(
     )
 
 
+def test_metrics_expose_bounded_api_and_job_signals(client: TestClient) -> None:
+    client.get("/health")
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert "freightiq_http_requests_total" in response.text
+    assert 'route="/health"' in response.text
+    assert 'freightiq_processing_jobs{status="queued"} 0.0' in response.text
+    assert "freightiq_processing_duration_seconds_average" in response.text
+
+
 def test_upload_returns_202_and_replays_idempotently(client: TestClient) -> None:
     first = upload(client)
     second = upload(client)

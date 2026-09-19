@@ -40,13 +40,15 @@ Retries lock the job row and reuse its document, so they cannot create duplicate
 - Deterministic decimal arithmetic and duplicate-charge detection outside the model
 - SQLAlchemy 2 models and versioned Alembic migrations on PostgreSQL
 - Typed React polling flow with upload, processing, failure and completed states
+- Prometheus metrics for bounded-route API traffic and durable worker outcomes
 - Tests for the API, worker idempotency, parser, validation, malformed model output,
   audit arithmetic and a real MinIO object round trip
 
 ## Tech stack
 
 React 19, TypeScript, Vite, FastAPI, Pydantic, SQLAlchemy, Alembic, PostgreSQL,
-Redis, Celery, Anthropic Claude, MinIO/S3, Docker Compose, pytest and GitHub Actions.
+Redis, Celery, Anthropic Claude, MinIO/S3, Prometheus metrics, Docker Compose, pytest
+and GitHub Actions.
 
 ## Repository structure
 
@@ -118,13 +120,15 @@ npm run build
 ## Current status
 
 Implemented: asynchronous PDF ingestion, durable jobs, object storage, Claude extraction,
-deterministic audits, PostgreSQL migrations, React polling, Docker development and CI tests.
+deterministic audits, PostgreSQL migrations, React polling, Prometheus-format API/worker
+outcome metrics, Docker development and CI tests.
 
-In progress: modest processing/API metrics and tracing.
+This repository does not claim production users, accuracy figures or a live deployment.
 
-Planned: authentication, tenant isolation, encrypted production storage and a deployed
-environment. This repository does not claim production users, accuracy figures or a live
-deployment.
+## Future work
+
+Authentication and tenant isolation are the first prerequisites for any hosted version,
+followed by encrypted production storage, retention/deletion controls and deployment.
 
 ## Security boundary
 

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from config import get_settings
 from database import get_session
+from metrics import metrics_response, observe_request
 from models import AuditFlag, Document, Invoice, LineItem, ProcessingJob
 from storage import DocumentStorage
 from tasks import process_invoice
@@ -25,6 +26,7 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type", "Idempotency-Key"],
 )
+app.middleware("http")(observe_request)
 
 
 def _flag_counts(flags: list[AuditFlag]) -> dict[str, int]:
@@ -117,6 +119,11 @@ def readiness(session: Annotated[Session, Depends(get_session)]) -> dict[str, st
             status_code=503, detail="A dependency is unavailable"
         ) from exc
     return {"status": "ready"}
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics() -> Any:
+    return metrics_response()
 
 
 @app.post("/api/invoices", status_code=status.HTTP_202_ACCEPTED)
