@@ -1,71 +1,118 @@
-import json
-import os
-import re
-from typing import Any
+from collections import Counter
+from decimal import Decimal
 
-import anthropic
+from schemas import AuditFinding, ExtractedInvoice, ExtractedLineItem
 
-AUDIT_SYSTEM_PROMPT = (
-    "You are a freight billing auditor. Given this structured invoice JSON, "
-    "identify anomalies. For each issue return: field, severity (warning|error), "
-    "description. Common issues: line item totals that don't add up, missing "
-    "required fields, duplicate line items, charges that seem unusually high, "
-    "due date before invoice date. Return ONLY a JSON array of objects with keys: "
-    "field, severity, description. If no issues found, return an empty array []."
-)
-
-MODEL = "claude-sonnet-4-5"
+CENT = Decimal("0.01")
 
 
-def _parse_json_response(content: str) -> list[dict[str, Any]]:
-    cleaned = content.strip()
-    if cleaned.startswith("```"):
-        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
-        cleaned = re.sub(r"\s*```$", "", cleaned)
-    data = json.loads(cleaned)
-    if not isinstance(data, list):
-        raise ValueError("Expected JSON array from auditor")
-    return data
-
-
-def audit_invoice(invoice_data: dict[str, Any]) -> list[dict[str, Any]]:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
-
-    client = anthropic.Anthropic(api_key=api_key)
-    invoice_json = json.dumps(invoice_data, indent=2)
-
-    message = client.messages.create(
-        model=MODEL,
-        max_tokens=4096,
-        system=AUDIT_SYSTEM_PROMPT,
-        messages=[
-            {
-                "role": "user",
-                "content": f"Audit this freight invoice:\n\n{invoice_json}",
-            }
-        ],
+def _finding(field: str, severity: str, description: str) -> AuditFinding:
+    return AuditFinding(
+        field=field,
+        severity=severity,
+        description=description,
     )
 
-    text_block = next(
-        (block.text for block in message.content if block.type == "text"),
-        None,
-    )
-    if not text_block:
-        raise ValueError("No text response from Claude")
 
-    flags = _parse_json_response(text_block)
-    validated: list[dict[str, Any]] = []
-    for flag in flags:
-        severity = flag.get("severity", "warning")
-        if severity not in ("warning", "error"):
-            severity = "warning"
-        validated.append(
-            {
-                "field": str(flag.get("field", "unknown")),
-                "severity": severity,
-                "description": str(flag.get("description", "No description")),
-            }
+def _money_equal(left: Decimal, right: Decimal) -> bool:
+    return abs(left - right) <= CENT
+
+
+def _line_key(
+    item: ExtractedLineItem,
+) -> tuple[str, Decimal | None, Decimal | None, Decimal | None]:
+    return (
+        (item.description or "").strip().casefold(),
+        item.quantity,
+        item.unit_price,
+        item.total,
+    )
+
+
+def audit_invoice(invoice: ExtractedInvoice) -> list[dict[str, str]]:
+    findings: list[AuditFinding] = []
+    for field, value in (
+        ("carrier_name", invoice.carrier_name),
+        ("invoice_number", invoice.invoice_number),
+        ("invoice_date", invoice.invoice_date),
+        ("total_amount", invoice.total_amount),
+    ):
+        if value is None:
+            findings.append(
+                _finding(field, "error", f"Required field {field} is missing")
+            )
+
+    if (
+        invoice.invoice_date
+        and invoice.due_date
+        and invoice.due_date < invoice.invoice_date
+    ):
+        findings.append(
+            _finding("due_date", "error", "Due date is earlier than the invoice date")
         )
-    return validated
+
+    counts = Counter(_line_key(item) for item in invoice.line_items)
+    for key, count in counts.items():
+        if count > 1:
+            label = key[0] or "unnamed charge"
+            findings.append(
+                _finding(
+                    "line_items",
+                    "warning",
+                    f"Possible duplicate charge: {label} appears {count} times",
+                )
+            )
+
+    stated_line_totals: list[Decimal] = []
+    for index, item in enumerate(invoice.line_items):
+        if item.total is not None:
+            stated_line_totals.append(item.total)
+        if item.quantity is None or item.unit_price is None or item.total is None:
+            continue
+        calculated = item.quantity * item.unit_price
+        if not _money_equal(calculated, item.total):
+            description = (
+                f"Stated {item.total:.2f}; quantity × unit price is {calculated:.2f}"
+            )
+            findings.append(
+                _finding(
+                    f"line_items[{index}].total",
+                    "error",
+                    description,
+                )
+            )
+
+    if invoice.subtotal is not None and stated_line_totals:
+        calculated_subtotal = sum(stated_line_totals, start=Decimal("0"))
+        if not _money_equal(calculated_subtotal, invoice.subtotal):
+            description = (
+                f"Stated {invoice.subtotal:.2f}; "
+                f"line items sum to {calculated_subtotal:.2f}"
+            )
+            findings.append(
+                _finding(
+                    "subtotal",
+                    "error",
+                    description,
+                )
+            )
+
+    if (
+        invoice.subtotal is not None
+        and invoice.taxes is not None
+        and invoice.total_amount is not None
+    ):
+        calculated_total = invoice.subtotal + invoice.taxes
+        if not _money_equal(calculated_total, invoice.total_amount):
+            description = (
+                f"Stated {invoice.total_amount:.2f}; "
+                f"subtotal plus taxes is {calculated_total:.2f}"
+            )
+            findings.append(
+                _finding(
+                    "total_amount",
+                    "error",
+                    description,
+                )
+            )
+    return [finding.model_dump() for finding in findings]

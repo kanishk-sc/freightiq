@@ -1,20 +1,15 @@
-from sqlmodel import Session, SQLModel, create_engine
+from collections.abc import Generator
 
-from models import AuditFlag, Invoice, LineItem  # noqa: F401
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
-DATABASE_URL = "sqlite:///./freightiq.db"
+from config import get_settings
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    echo=False,
-)
-
-
-def create_db_and_tables() -> None:
-    SQLModel.metadata.create_all(engine)
+settings = get_settings()
+engine = create_engine(settings.database_url, pool_pre_ping=True)
+SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
 
-def get_session():
-    with Session(engine) as session:
+def get_session() -> Generator[Session, None, None]:
+    with SessionLocal() as session:
         yield session

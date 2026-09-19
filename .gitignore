@@ -11,6 +11,16 @@ frontend/.env
 
 # Node
 frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+
+# Test and tool caches
+.venv/
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+.planning/
+.coverage
 
 # OS
 .DS_Store
