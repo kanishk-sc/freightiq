@@ -12,8 +12,8 @@ jobs:
       - uses: actions/checkout@v5
       - name: Start test dependencies
         run: docker compose up -d postgres redis minio --wait
-      - name: Build backend test image
-        run: docker compose --profile test build tests
+      - name: Build backend and review images
+        run: docker compose --profile test build tests api migrate review review-tests review-test-migrate
       - name: Apply and validate migrations
         run: |
           docker compose run --rm api alembic upgrade head
@@ -24,6 +24,15 @@ jobs:
           docker compose --profile test run --rm tests python -m ruff check .
       - name: Backend tests
         run: docker compose --profile test run --rm tests
+      - name: Review TypeScript, lint and production build
+        run: |
+          docker compose --profile test run --rm review-tests npm run typecheck
+          docker compose --profile test run --rm review-tests npm run lint
+          docker compose --profile test run --rm review-tests npm run build
+      - name: Review API PostgreSQL tests
+        run: docker compose --profile test run --rm review-tests
+      - name: Compose configuration
+        run: docker compose config --quiet
       - name: Stop services
         if: always()
         run: docker compose --profile test down
@@ -44,5 +53,9 @@ jobs:
         run: npm ci
       - name: TypeScript check
         run: npm run typecheck
+      - name: Lint and component tests
+        run: |
+          npm run lint
+          npm test
       - name: Production build
         run: npm run build

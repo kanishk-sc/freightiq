@@ -13,6 +13,10 @@ frontend/.env
 frontend/node_modules/
 frontend/dist/
 frontend/*.tsbuildinfo
+review-service/node_modules/
+review-service/dist/
+review-service/.env
+**/coverage/
 
 # Test and tool caches
 .venv/

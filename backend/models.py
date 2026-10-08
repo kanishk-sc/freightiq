@@ -138,3 +138,49 @@ class AuditFlag(TimestampMixin, Base):
     )
 
     invoice: Mapped[Invoice] = relationship(back_populates="audit_flags")
+
+
+# Schema registry only: the Node review service owns writes to these tables.
+class ReviewTask(TimestampMixin, Base):
+    __tablename__ = "review_tasks"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'in_review', 'resolved')", name="ck_review_status"
+        ),
+        CheckConstraint("version > 0", name="ck_review_version"),
+        CheckConstraint(
+            "status != 'resolved' OR "
+            "(resolved_at IS NOT NULL AND length(trim(resolution)) > 0)",
+            name="ck_review_resolution",
+        ),
+        Index("ix_review_status_created", "status", "created_at", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(
+        ForeignKey("documents.id"), unique=True, nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(16), server_default="pending")
+    reason: Mapped[str] = mapped_column(Text)
+    notes: Mapped[str] = mapped_column(Text, server_default="")
+    resolution: Mapped[str] = mapped_column(Text, server_default="")
+    version: Mapped[int] = mapped_column(server_default="1")
+    in_review_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ReviewHistory(Base):
+    __tablename__ = "review_history"
+    __table_args__ = (Index("ix_review_history_task_id", "task_id", "id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("review_tasks.id"))
+    from_status: Mapped[str | None] = mapped_column(String(16))
+    to_status: Mapped[str] = mapped_column(String(16))
+    notes: Mapped[str] = mapped_column(Text)
+    resolution: Mapped[str] = mapped_column(Text)
+    origin: Mapped[str] = mapped_column(String(16))
+    version: Mapped[int] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

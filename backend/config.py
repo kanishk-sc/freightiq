@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-4-5"
     anthropic_timeout_seconds: float = 30.0
     max_model_input_chars: int = 50_000
+    review_service_url: str = "http://localhost:8001"
+    review_service_timeout_seconds: float = 2.0
 
     model_config = SettingsConfigDict(
         env_file=".env",

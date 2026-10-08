@@ -7,6 +7,7 @@ from processing import (
     process_job,
     set_job_state,
 )
+from review_client import notify_review
 
 settings = get_settings()
 celery_app = Celery(
@@ -28,9 +29,12 @@ celery_app.conf.update(
 @celery_app.task(bind=True, max_retries=2, name="freightiq.process_invoice")
 def process_invoice(self, job_id: str) -> int | None:
     try:
-        return process_job(job_id)
+        invoice_id = process_job(job_id)
+        notify_review(job_id)
+        return invoice_id
     except PermanentProcessingError as exc:
         set_job_state(job_id, status="failed", error_code=str(exc))
+        notify_review(job_id)
         return None
     except TransientProcessingError as exc:
         if self.request.retries >= self.max_retries:
