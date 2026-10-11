@@ -26,6 +26,14 @@ The Python integration test invokes the actual Node HTTP API after a flagged
 document is processed and verifies the final status/resolution/history in SQL.
 External model calls are mocked in automated tests.
 
+### Publish follow-up — 2026-10-11
+
+The initial GitHub backend job could not pull the old MinIO registry image.
+Built MinIO from release commit `07c3a429bfed433e49018cb0f78a52145d4bedeb`,
+restarted it against the existing data volume, and observed a healthy container.
+Reran the complete Python suite against this image: **27 passed**, including
+the S3 object/metadata round trip and live Python-to-Node review integration.
+
 ## Real local demo and browser evidence
 
 1. Started the actual Celery worker; deliberately stopped Node.
@@ -64,8 +72,11 @@ The review API uses 8001. The demo record remains available for inspection.
 - Seven npm advisories remain in the existing Tailwind 3 development toolchain
   (five high, two moderate). Its suggested major Tailwind upgrade was not mixed
   into this feature. The newly added Node service audit is clean.
-- CI configuration was extended, but no remote CI run, commit, push or deployment
-  is claimed.
+- GitHub CI's frontend job passed on the published feature branch. Backend CI
+  initially stopped before testing because the existing MinIO image was unavailable.
+  Compose now builds the same MinIO release from its immutable upstream source
+  commit; the pull request's checks are the authoritative remote test status.
+  No hosted deployment is claimed.
 
 ## Accurate resume bullet
 

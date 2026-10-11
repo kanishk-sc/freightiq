@@ -82,6 +82,11 @@ docker-compose.yml
 docker compose up -d --build --wait
 ```
 
+The first build compiles MinIO from the immutable upstream commit for
+`RELEASE.2025-09-07T16-13-09Z` and can take several minutes. MinIO's community
+distribution is [source-only](https://github.com/minio/minio); the previously used
+registry image is unavailable. The storage API and existing data volume are unchanged.
+
 3. Start the frontend in a second terminal:
 
 ```sh
