@@ -6,7 +6,11 @@ from sqlalchemy import select
 
 from auditor import audit_invoice
 from database import SessionLocal
-from extractor import extract_invoice_fields, extract_text_from_pdf
+from extractor import (
+    ExtractionValidationError,
+    extract_invoice_fields,
+    extract_text_from_pdf,
+)
 from models import AuditFlag, Document, Invoice, LineItem, ProcessingJob
 from storage import DocumentStorage
 
@@ -126,6 +130,8 @@ def process_job(job_id: str) -> int | None:
     try:
         extracted = extract_invoice_fields(raw_text)
         flags = audit_invoice(extracted)
+    except ExtractionValidationError as exc:
+        raise PermanentProcessingError("extraction_validation_failed") from exc
     except ValueError as exc:
         raise PermanentProcessingError("model_configuration_or_output_invalid") from exc
     except Exception as exc:

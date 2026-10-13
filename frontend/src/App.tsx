@@ -12,8 +12,9 @@ import AuditPanel from "./components/AuditPanel";
 import Dashboard from "./components/Dashboard";
 import InvoiceTable from "./components/InvoiceTable";
 import UploadZone from "./components/UploadZone";
+import ReviewQueue from "./components/ReviewQueue";
 
-type View = "upload" | "detail" | "dashboard";
+type View = "upload" | "detail" | "dashboard" | "review";
 
 export default function App() {
   const [view, setView] = useState<View>("upload");
@@ -112,7 +113,8 @@ export default function App() {
               <p className="text-xs text-slate-500">AI Freight Invoice Auditor</p>
             </div>
           </button>
-          <nav className="flex gap-1">
+          <nav className="flex flex-wrap gap-1">
+            <button type="button" className={navLinkClass(view === "review")} onClick={() => setView("review")}>Review Queue</button>
             <button
               type="button"
               className={navLinkClass(view === "upload")}
@@ -150,6 +152,7 @@ export default function App() {
         )}
 
         {view === "dashboard" && <Dashboard onSelectInvoice={goToDetail} />}
+        {view === "review" && <ReviewQueue />}
 
         {view === "detail" && (
           <div className="space-y-8">
